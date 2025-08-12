@@ -10,6 +10,8 @@ import FallbackImage from "../../components/FallbackImage/FallbackImage";
 import ChatWindow from "../../components/ChatWindow/ChatWindow";
 
 import styles from "./Profile.module.scss";
+import postsService from "../../services/postsService";
+import AuthService from "../../services/AuthService";
 
 const Profile = () => {
     const { username } = useParams();
@@ -24,98 +26,27 @@ const Profile = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isChatMinimized, setIsChatMinimized] = useState(false);
 
-    // Check if this is the user's own profile
-    // In a real app, you'd get current user from auth context
-    const currentUser = "sonngoc"; // Mock current user
-    const isOwnProfile = currentUser === username;
-
-    // Mock profile data - trong thực tế sẽ fetch từ API
-    const mockProfile = {
-        username: username || "john-doe",
-        name: "John Doe",
-        title: "Senior Frontend Developer",
-        bio: "Passionate about modern web development, React ecosystem, and creating amazing user experiences. Love sharing knowledge through writing and open source contributions.",
-        avatar: "https://via.placeholder.com/120?text=JD",
-        coverImage: "https://via.placeholder.com/1200x300?text=Cover+Image",
-        location: "San Francisco, CA",
-        website: "https://johndoe.dev",
-        joinedDate: "2022-01-15",
-        social: {
-            twitter: "https://twitter.com/johndoe",
-            github: "https://github.com/johndoe",
-            linkedin: "https://linkedin.com/in/johndoe",
-            website: "https://johndoe.dev",
-        },
-        stats: {
-            postsCount: 42,
-            followers: 1250,
-            following: 180,
-            likes: 3400,
-        },
-        skills: ["React", "TypeScript", "Node.js", "GraphQL", "AWS", "Docker"],
-        badges: [
-            { name: "Top Author", color: "primary", icon: "🏆" },
-            { name: "Early Adopter", color: "secondary", icon: "🚀" },
-            { name: "Community Helper", color: "success", icon: "🤝" },
-        ],
-    };
-
-    // Mock posts data
-    const generatePosts = (page = 1) => {
-        const postsPerPage = 6;
-        const totalPosts = 42;
-        const startIndex = (page - 1) * postsPerPage;
-
-        return Array.from(
-            { length: Math.min(postsPerPage, totalPosts - startIndex) },
-            (_, i) => ({
-                id: startIndex + i + 1,
-                title: `Understanding ${
-                    [
-                        "React Hooks",
-                        "TypeScript Generics",
-                        "CSS Grid",
-                        "Node.js Streams",
-                        "GraphQL Queries",
-                        "Docker Containers",
-                    ][i % 6]
-                }`,
-                excerpt:
-                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-                author: {
-                    name: mockProfile.name,
-                    avatar: mockProfile.avatar,
-                    username: mockProfile.username,
-                },
-                publishedAt: new Date(
-                    Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
-                ).toISOString(),
-                readTime: Math.floor(Math.random() * 10) + 3,
-                topic: [
-                    "React",
-                    "TypeScript",
-                    "CSS",
-                    "Node.js",
-                    "GraphQL",
-                    "DevOps",
-                ][i % 6],
-                slug: `post-${startIndex + i + 1}`,
-                featuredImage: `https://via.placeholder.com/400x200?text=Post+${
-                    startIndex + i + 1
-                }`,
-                likes: Math.floor(Math.random() * 100) + 10,
-                comments: Math.floor(Math.random() * 50) + 5,
-            })
-        );
-    };
-
     useEffect(() => {
         const loadProfile = async () => {
             setLoading(true);
-            // Simulate API delay
-            await new Promise((resolve) => setTimeout(resolve, 800));
-            setProfile(mockProfile);
-            setLoading(false);
+            try {
+                const data = await AuthService.getUser();
+
+                // Gán fallback nếu thiếu `stats`
+                // data.stats ??= {
+                //     postsCount: 0,
+                //     followers: 0,
+                //     following: 0,
+                //     likes: 0,
+                // };
+
+                setProfile(data);
+            } catch (error) {
+                console.error("Failed to load profile", error);
+                setProfile(null);
+            } finally {
+                setLoading(false);
+            }
         };
 
         loadProfile();
@@ -124,12 +55,16 @@ const Profile = () => {
     useEffect(() => {
         const loadPosts = async () => {
             setPostsLoading(true);
-            // Simulate API delay
-            await new Promise((resolve) => setTimeout(resolve, 600));
-            const newPosts = generatePosts(currentPage);
-            setPosts(newPosts);
-            setTotalPages(Math.ceil(42 / 6)); // 42 total posts, 6 per page
-            setPostsLoading(false);
+            try {
+                const res = await postsService.getListMyPost();
+                setPosts(res.data);
+                setTotalPages(Math.ceil(res.data.length / 6));
+            } catch (error) {
+                console.error("Failed to load posts", error);
+                setPosts([]);
+            } finally {
+                setPostsLoading(false);
+            }
         };
 
         if (profile) {
@@ -137,17 +72,18 @@ const Profile = () => {
         }
     }, [profile, currentPage, activeTab]);
 
+    const isOwnProfile = profile?.username === username;
+
     const handlePageChange = (page) => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString("en-US", {
+    const formatDate = (dateString) =>
+        new Date(dateString).toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
         });
-    };
 
     const handleMessageClick = () => {
         setIsChatOpen(true);
@@ -192,7 +128,7 @@ const Profile = () => {
             {/* Cover Section */}
             <div className={styles.coverSection}>
                 <div className={styles.coverImage}>
-                    <FallbackImage src={profile.coverImage} alt="Cover" />
+                    <FallbackImage src={profile?.coverImage} alt="Cover" />
                     <div className={styles.coverOverlay}></div>
                 </div>
 
@@ -201,21 +137,15 @@ const Profile = () => {
                         <div className={styles.headerContent}>
                             <div className={styles.avatarSection}>
                                 <FallbackImage
-                                    src={profile.avatar}
-                                    alt={profile.name}
+                                    src={profile?.avatar}
+                                    alt={profile?.name}
                                     className={styles.avatar}
                                 />
                                 <div className={styles.basicInfo}>
-                                    <h1 className={styles.name}>
-                                        {profile.name}
-                                    </h1>
-                                    <p className={styles.username}>
-                                        @{profile.username}
-                                    </p>
-                                    {profile.title && (
-                                        <p className={styles.title}>
-                                            {profile.title}
-                                        </p>
+                                    <h1 className={styles.name}>{profile?.first_name} {profile?.last_name}</h1>
+                                    <p className={styles.username}>@{profile?.first_name} {profile?.last_name}</p>
+                                    {profile?.title && (
+                                        <p className={styles.title}>{profile?.title}</p>
                                     )}
                                 </div>
                             </div>
@@ -226,9 +156,7 @@ const Profile = () => {
                                         variant="secondary"
                                         size="md"
                                         onClick={() =>
-                                            navigate(
-                                                `/profile/${username}/edit`
-                                            )
+                                            navigate(`/profile/${username}/edit`)
                                         }
                                     >
                                         Edit Profile
@@ -258,43 +186,36 @@ const Profile = () => {
                 <div className={styles.content}>
                     {/* Sidebar */}
                     <aside className={styles.sidebar}>
-                        {/* Bio */}
-                        {profile.bio && (
+                        {profile?.about && (
                             <div className={styles.bioCard}>
                                 <h3>About</h3>
-                                <p>{profile.bio}</p>
+                                <p>{profile?.about}</p>
                             </div>
                         )}
 
-                        {/* Stats */}
                         <div className={styles.statsCard}>
                             <h3>Stats</h3>
                             <div className={styles.stats}>
                                 <div className={styles.stat}>
-                                    <strong>{profile.stats.postsCount}</strong>
+                                    <strong>{profile?.posts_count ?? 0}</strong>
                                     <span>Posts</span>
                                 </div>
                                 <div className={styles.stat}>
-                                    <strong>
-                                        {profile.stats.followers.toLocaleString()}
-                                    </strong>
+                                    <strong>{(profile?.followers_count ?? 0).toLocaleString()}</strong>
                                     <span>Followers</span>
                                 </div>
                                 <div className={styles.stat}>
-                                    <strong>{profile.stats.following}</strong>
+                                    <strong>{profile?.following_count ?? 0}</strong>
                                     <span>Following</span>
                                 </div>
                                 <div className={styles.stat}>
-                                    <strong>
-                                        {profile.stats.likes.toLocaleString()}
-                                    </strong>
+                                    <strong>{(profile?.likes ?? 0).toLocaleString()}</strong>
                                     <span>Likes</span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Skills */}
-                        {profile.skills && profile.skills.length > 0 && (
+                        {profile.skills?.length > 0 && (
                             <div className={styles.skillsCard}>
                                 <h3>Skills</h3>
                                 <div className={styles.skills}>
@@ -311,8 +232,7 @@ const Profile = () => {
                             </div>
                         )}
 
-                        {/* Badges */}
-                        {profile.badges && profile.badges.length > 0 && (
+                        {profile.badges?.length > 0 && (
                             <div className={styles.badgesCard}>
                                 <h3>Achievements</h3>
                                 <div className={styles.badges}>
@@ -333,32 +253,24 @@ const Profile = () => {
                             </div>
                         )}
 
-                        {/* Additional Info */}
                         <div className={styles.infoCard}>
                             <h3>Info</h3>
                             <div className={styles.infoItems}>
                                 {profile.location && (
                                     <div className={styles.infoItem}>
-                                        <span className={styles.infoIcon}>
-                                            📍
-                                        </span>
+                                        <span className={styles.infoIcon}>📍</span>
                                         <span>{profile.location}</span>
                                     </div>
                                 )}
                                 {profile.website && (
                                     <div className={styles.infoItem}>
-                                        <span className={styles.infoIcon}>
-                                            🌐
-                                        </span>
+                                        <span className={styles.infoIcon}>🌐</span>
                                         <a
                                             href={profile.website}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                         >
-                                            {profile.website.replace(
-                                                /^https?:\/\//,
-                                                ""
-                                            )}
+                                            {profile.website.replace(/^https?:\/\//, "")}
                                         </a>
                                     </div>
                                 )}
@@ -371,67 +283,47 @@ const Profile = () => {
                             </div>
                         </div>
 
-                        {/* Social Links */}
-                        {profile.social &&
-                            Object.keys(profile.social).length > 0 && (
-                                <div className={styles.socialCard}>
-                                    <h3>Connect</h3>
-                                    <div className={styles.socialLinks}>
-                                        {profile.social.twitter && (
-                                            <a
-                                                href={profile.social.twitter}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
-                                                <span>🐦</span> Twitter
-                                            </a>
-                                        )}
-                                        {profile.social.github && (
-                                            <a
-                                                href={profile.social.github}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
-                                                <span>🐙</span> GitHub
-                                            </a>
-                                        )}
-                                        {profile.social.linkedin && (
-                                            <a
-                                                href={profile.social.linkedin}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
-                                                <span>💼</span> LinkedIn
-                                            </a>
-                                        )}
-                                    </div>
+                        {profile.social && (
+                            <div className={styles.socialCard}>
+                                <h3>Connect</h3>
+                                <div className={styles.socialLinks}>
+                                    {profile.social.twitter && (
+                                        <a href={profile.social.twitter} target="_blank" rel="noopener noreferrer">
+                                            <span>🐦</span> Twitter
+                                        </a>
+                                    )}
+                                    {profile.social.github && (
+                                        <a href={profile.social.github} target="_blank" rel="noopener noreferrer">
+                                            <span>🐙</span> GitHub
+                                        </a>
+                                    )}
+                                    {profile.social.linkedin && (
+                                        <a href={profile.social.linkedin} target="_blank" rel="noopener noreferrer">
+                                            <span>💼</span> LinkedIn
+                                        </a>
+                                    )}
                                 </div>
-                            )}
+                            </div>
+                        )}
                     </aside>
 
                     {/* Main Content */}
                     <main className={styles.main}>
-                        {/* Tabs */}
                         <div className={styles.tabs}>
                             <button
-                                className={`${styles.tab} ${
-                                    activeTab === "posts" ? styles.active : ""
-                                }`}
+                                className={`${styles.tab} ${activeTab === "posts" ? styles.active : ""}`}
                                 onClick={() => setActiveTab("posts")}
                             >
-                                Posts ({profile.stats.postsCount})
+                                Posts ({profile?.posts_count ?? 0})
                             </button>
                             <button
-                                className={`${styles.tab} ${
-                                    activeTab === "about" ? styles.active : ""
-                                }`}
+                                className={`${styles.tab} ${activeTab === "about" ? styles.active : ""}`}
                                 onClick={() => setActiveTab("about")}
                             >
                                 About
                             </button>
                         </div>
 
-                        {/* Tab Content */}
                         <div className={styles.tabContent}>
                             {activeTab === "posts" && (
                                 <div className={styles.postsTab}>
@@ -452,13 +344,12 @@ const Profile = () => {
                                         author={{
                                             name: profile.name,
                                             title: profile.title,
-                                            bio: profile.bio,
+                                            bio: profile.about,
                                             avatar: profile.avatar,
                                             social: profile.social,
-                                            postsCount:
-                                                profile.stats.postsCount,
-                                            followers: profile.stats.followers,
-                                            following: profile.stats.following,
+                                            posts_count: profile?.posts_count ?? 0,
+                                            followers_count: profile?.followers_count ?? 0,
+                                            following_count: profile?.following_count ?? 0,
                                         }}
                                         showFollowButton={false}
                                     />
@@ -469,7 +360,6 @@ const Profile = () => {
                 </div>
             </div>
 
-            {/* Chat Window */}
             {!isOwnProfile && (
                 <ChatWindow
                     user={{

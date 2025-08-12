@@ -27,11 +27,11 @@ const CommentItem = ({
 
     const {
         id,
-        author,
+        user,
         content,
-        createdAt,
-        likes = 0,
-        isLiked = false,
+        created_at,
+        like_count = 0,
+        is_like = false,
         replies = [],
         isEdited = false,
     } = comment;
@@ -123,6 +123,14 @@ const CommentItem = ({
         setShowDropdown(!showDropdown);
     };
 
+    // ✅ FIXED: Xử lý user data có thể undefined/null
+    const userName = user 
+        ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.name || 'Anonymous'
+        : 'Anonymous';
+    
+    const userAvatar = user?.avatar || '/default-avatar.png';
+    const userLink = user?.username || user?.name?.toLowerCase().replace(/\s+/g, "-") || 'unknown';
+
     return (
         <div
             className={`${styles.commentItem} ${className || ""}`}
@@ -132,7 +140,13 @@ const CommentItem = ({
             <div className={styles.comment}>
                 {/* Avatar */}
                 <div className={styles.avatar}>
-                    <FallbackImage src={author.avatar} alt={author.name} />
+                    <FallbackImage 
+                        src={userAvatar} 
+                        alt={userName}
+                        onError={(e) => {
+                            e.target.src = '/default-avatar.png';
+                        }}
+                    />
                 </div>
 
                 {/* Content */}
@@ -141,18 +155,13 @@ const CommentItem = ({
                     <div className={styles.header}>
                         <div className={styles.info}>
                             <Link
-                                to={`/profile/${
-                                    author?.username ||
-                                    author?.name
-                                        ?.toLowerCase()
-                                        .replace(/\s+/g, "-")
-                                }`}
-                                className={styles.authorName}
+                                to={`/profile/${userLink}`}
+                                className={styles.userName}
                             >
-                                {author.name}
+                                {userName}
                             </Link>
-                            <time className={styles.date} dateTime={createdAt}>
-                                {formatDate(createdAt)}
+                            <time className={styles.date} dateTime={created_at}>
+                                {formatDate(created_at)}
                             </time>
                             {isEdited && (
                                 <span className={styles.edited}>(edited)</span>
@@ -244,7 +253,7 @@ const CommentItem = ({
                         <div className={styles.actions}>
                             <button
                                 className={`${styles.likeButton} ${
-                                    isLiked ? styles.liked : ""
+                                    is_like ? styles.liked : ""
                                 }`}
                                 onClick={handleLike}
                                 type="button"
@@ -257,7 +266,7 @@ const CommentItem = ({
                                 >
                                     <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                                 </svg>
-                                {likes > 0 && <span>{likes}</span>}
+                                {like_count > 0 && <span>{like_count}</span>}
                             </button>
 
                             {level < maxLevel && (
@@ -403,19 +412,22 @@ const CommentItem = ({
     );
 };
 
+// ✅ FIXED: PropTypes với avatar optional
 CommentItem.propTypes = {
     comment: PropTypes.shape({
         id: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
             .isRequired,
-        author: PropTypes.shape({
-            name: PropTypes.string.isRequired,
-            avatar: PropTypes.string.isRequired,
-            username: PropTypes.string,
+        user: PropTypes.shape({
+            first_name: PropTypes.string,
+            last_name: PropTypes.string,
+            avatar: PropTypes.string, // ✅ Bỏ .isRequired vì có thể null
+            name: PropTypes.string, // ✅ Optional fallback
+            username: PropTypes.string, // ✅ Optional
         }).isRequired,
         content: PropTypes.string.isRequired,
-        createdAt: PropTypes.string.isRequired,
-        likes: PropTypes.number,
-        isLiked: PropTypes.bool,
+        created_at: PropTypes.string.isRequired,
+        like_count: PropTypes.number,
+        is_like: PropTypes.bool,
         replies: PropTypes.array,
         isEdited: PropTypes.bool,
     }).isRequired,

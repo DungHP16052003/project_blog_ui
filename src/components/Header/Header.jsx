@@ -5,136 +5,128 @@ import Button from "../Button/Button";
 import FallbackImage from "../FallbackImage/FallbackImage";
 import NotificationDropdown from "../NotificationDropdown/NotificationDropdown";
 import styles from "./Header.module.scss";
+import userUse from "../../hook/useUser";
 
 const Header = () => {
-    // Mock authentication state - trong thực tế sẽ từ context/store
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [user, setUser] = useState(null);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-    const dropdownRef = useRef(null);
-    const notificationRef = useRef(null);
+  // Mock authentication state - trong thực tế sẽ từ context/store
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const notificationRef = useRef(null);
 
-    // Mock user data
-    const mockUser = {
-        name: "John Doe",
-        username: "john-doe",
-        email: "john.doe@example.com",
-        avatar: "https://via.placeholder.com/40?text=JD",
-        role: "Author",
-    };
+  const { currentUser } = userUse();
 
-    // Mock notifications data
-    const mockNotifications = [
-        {
-            id: 1,
-            type: "like",
-            message: 'Sarah Johnson liked your post "Advanced React Patterns"',
-            link: "/blog/advanced-react-patterns",
-            read: false,
-            createdAt: "2024-01-20T10:30:00Z",
-        },
-        {
-            id: 2,
-            type: "comment",
-            message:
-                'Mike Chen commented on your post "Building Scalable APIs"',
-            link: "/blog/building-scalable-apis",
-            read: false,
-            createdAt: "2024-01-20T09:15:00Z",
-        },
-        {
-            id: 3,
-            type: "follow",
-            message: "Emily Rodriguez started following you",
-            link: "/profile/emily-rodriguez",
-            read: true,
-            createdAt: "2024-01-19T16:45:00Z",
-        },
-        {
-            id: 4,
-            type: "like",
-            message: 'David Kim and 5 others liked your post "CSS Grid Guide"',
-            link: "/blog/css-grid-guide",
-            read: true,
-            createdAt: "2024-01-19T14:20:00Z",
-        },
-    ];
+  useEffect(() => {
+    if (currentUser) {
+      setIsAuthenticated(true);
+      setUser(currentUser.data); 
+    }
+  }, [currentUser]);
 
-    const [notifications, setNotifications] = useState(mockNotifications);
-    const unreadCount = notifications.filter((n) => !n.read).length;
+  const mockNotifications = [
+    {
+      id: 1,
+      type: "like",
+      message: 'Sarah Johnson liked your post "Advanced React Patterns"',
+      link: "/blog/advanced-react-patterns",
+      read: false,
+      createdAt: "2024-01-20T10:30:00Z",
+    },
+    {
+      id: 2,
+      type: "comment",
+      message: 'Mike Chen commented on your post "Building Scalable APIs"',
+      link: "/blog/building-scalable-apis",
+      read: false,
+      createdAt: "2024-01-20T09:15:00Z",
+    },
+    {
+      id: 3,
+      type: "follow",
+      message: "Emily Rodriguez started following you",
+      link: "/profile/emily-rodriguez",
+      read: true,
+      createdAt: "2024-01-19T16:45:00Z",
+    },
+    {
+      id: 4,
+      type: "like",
+      message: 'David Kim and 5 others liked your post "CSS Grid Guide"',
+      link: "/blog/css-grid-guide",
+      read: true,
+      createdAt: "2024-01-19T14:20:00Z",
+    },
+  ];
 
-    // Toggle auth state for demo (remove in production)
-    const toggleAuth = () => {
-        setIsAuthenticated(!isAuthenticated);
-        setUser(isAuthenticated ? null : mockUser);
+  const [notifications, setNotifications] = useState(mockNotifications);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const toggleAuth = () => {
+    setIsAuthenticated(!isAuthenticated);
+    setIsDropdownOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
-    };
-
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (
-                dropdownRef.current &&
-                !dropdownRef.current.contains(event.target)
-            ) {
-                setIsDropdownOpen(false);
-            }
-            if (
-                notificationRef.current &&
-                !notificationRef.current.contains(event.target)
-            ) {
-                setIsNotificationOpen(false);
-            }
-        };
-
-        document.addEventListener("mousedown", handleClickOutside);
-        return () =>
-            document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    // Close mobile menu when window resizes
-    useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth >= 768) {
-                setIsMobileMenuOpen(false);
-            }
-        };
-
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
-    }, []);
-
-    const handleLogout = () => {
-        setIsAuthenticated(false);
-        setUser(null);
-        setIsDropdownOpen(false);
+      }
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
         setIsNotificationOpen(false);
+      }
     };
 
-    const handleNotificationToggle = () => {
-        setIsNotificationOpen(!isNotificationOpen);
-        setIsDropdownOpen(false); // Close user dropdown if open
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close mobile menu when window resizes
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsMobileMenuOpen(false);
+      }
     };
 
-    const handleMarkAsRead = async (notificationId) => {
-        setNotifications((prev) =>
-            prev.map((notification) =>
-                notification.id === notificationId
-                    ? { ...notification, read: true }
-                    : notification
-            )
-        );
-    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-    const handleMarkAllAsRead = async () => {
-        setNotifications((prev) =>
-            prev.map((notification) => ({ ...notification, read: true }))
-        );
-    };
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setUser(null);
+    setIsDropdownOpen(false);
+    setIsNotificationOpen(false);
+  };
 
-    return (
+  const handleNotificationToggle = () => {
+    setIsNotificationOpen(!isNotificationOpen);
+    setIsDropdownOpen(false); // Close user dropdown if open
+  };
+
+  const handleMarkAsRead = async (notificationId) => {
+    setNotifications((prev) =>
+      prev.map((notification) =>
+        notification.id === notificationId
+          ? { ...notification, read: true }
+          : notification
+      )
+    );
+  };
+
+  const handleMarkAllAsRead = async () => {
+    setNotifications((prev) =>
+      prev.map((notification) => ({ ...notification, read: true }))
+    );
+  };
+
+   return (
         <header className={styles.header}>
             <div className="container">
                 <div className={styles.content}>
@@ -190,7 +182,7 @@ const Header = () => {
                                             className={styles.userAvatar}
                                         />
                                         <span className={styles.userName}>
-                                            {user?.name}
+                                           hi, {`${currentUser?.first_name} ${currentUser?.last_name}`}
                                         </span>
                                         <svg
                                             className={`${styles.chevron} ${
@@ -518,5 +510,6 @@ const Header = () => {
         </header>
     );
 };
+
 
 export default Header;

@@ -18,6 +18,8 @@ const Input = ({
     className,
     id,
     name,
+    multiline = false,
+    rows = 4,
     ...props
 }) => {
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
@@ -29,9 +31,36 @@ const Input = ({
             [styles.error]: error,
             [styles.disabled]: disabled,
             [styles.fullWidth]: fullWidth,
+            [styles.multiline]: multiline,
         },
         className
     );
+
+    // Loại bỏ các props không hợp lệ cho HTML elements
+    const {
+        multiline: _multiline,
+        rows: _rows,
+        ...restProps
+    } = props;
+
+    const commonProps = {
+        id: inputId,
+        name,
+        className: inputClasses,
+        placeholder,
+        value,
+        onChange,
+        onBlur,
+        disabled,
+        required,
+        "aria-invalid": error ? "true" : "false",
+        "aria-describedby": error
+            ? `${inputId}-error`
+            : helperText
+            ? `${inputId}-helper`
+            : undefined,
+        ...restProps
+    };
 
     return (
         <div className={styles.container}>
@@ -43,27 +72,17 @@ const Input = ({
             )}
 
             <div className={styles.inputWrapper}>
-                <input
-                    id={inputId}
-                    name={name}
-                    type={type}
-                    className={inputClasses}
-                    placeholder={placeholder}
-                    value={value}
-                    onChange={onChange}
-                    onBlur={onBlur}
-                    disabled={disabled}
-                    required={required}
-                    aria-invalid={error ? "true" : "false"}
-                    aria-describedby={
-                        error
-                            ? `${inputId}-error`
-                            : helperText
-                            ? `${inputId}-helper`
-                            : undefined
-                    }
-                    {...props}
-                />
+                {multiline ? (
+                    <textarea
+                        {...commonProps}
+                        rows={rows}
+                    />
+                ) : (
+                    <input
+                        {...commonProps}
+                        type={type}
+                    />
+                )}
             </div>
 
             {error && (
@@ -97,6 +116,8 @@ Input.propTypes = {
     className: PropTypes.string,
     id: PropTypes.string,
     name: PropTypes.string,
+    multiline: PropTypes.bool,
+    rows: PropTypes.number,
 };
 
 export default Input;

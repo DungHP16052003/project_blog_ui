@@ -7,7 +7,7 @@ import styles from "./AuthorInfo.module.scss";
 const AuthorInfo = ({
     author,
     showSocial = true,
-    showBio = true,
+    showAbout = true,
     showFollowButton = true,
     loading = false,
     className,
@@ -39,12 +39,12 @@ const AuthorInfo = ({
     const {
         name,
         title,
-        bio,
+        about,
         avatar,
         social = {},
-        postsCount,
-        followers,
-        following,
+        posts_count,
+        followers_count,
+        following_count,
     } = author;
 
     return (
@@ -73,19 +73,19 @@ const AuthorInfo = ({
 
                     {/* Stats */}
                     <div className={styles.stats}>
-                        {postsCount !== undefined && (
+                        {posts_count !== undefined && (
                             <span className={styles.stat}>
-                                <strong>{postsCount}</strong> Posts
+                                <strong>{posts_count}</strong> Posts
                             </span>
                         )}
-                        {followers !== undefined && (
+                        {followers_count !== undefined && (
                             <span className={styles.stat}>
-                                <strong>{followers}</strong> Followers
+                                <strong>{followers_count}</strong> Followers
                             </span>
                         )}
-                        {following !== undefined && (
+                        {following_count !== undefined && (
                             <span className={styles.stat}>
-                                <strong>{following}</strong> Following
+                                <strong>{following_count}</strong> Following
                             </span>
                         )}
                     </div>
@@ -100,9 +100,9 @@ const AuthorInfo = ({
                 )}
             </div>
 
-            {showBio && bio && (
-                <div className={styles.bio}>
-                    <p>{bio}</p>
+            {showAbout && about && (
+                <div className={styles.about}>
+                    <p>{about}</p>
                 </div>
             )}
 
@@ -194,7 +194,7 @@ AuthorInfo.propTypes = {
         name: PropTypes.string.isRequired,
         username: PropTypes.string,
         title: PropTypes.string,
-        bio: PropTypes.string,
+        about: PropTypes.string,
         avatar: PropTypes.string.isRequired,
         social: PropTypes.shape({
             twitter: PropTypes.string,
@@ -202,12 +202,12 @@ AuthorInfo.propTypes = {
             linkedin: PropTypes.string,
             website: PropTypes.string,
         }),
-        postsCount: PropTypes.number,
-        followers: PropTypes.number,
-        following: PropTypes.number,
+        posts_count: PropTypes.number,
+        followers_count: PropTypes.number,
+        following_count: PropTypes.number,
     }),
     showSocial: PropTypes.bool,
-    showBio: PropTypes.bool,
+   showAbout: PropTypes.bool,
     showFollowButton: PropTypes.bool,
     loading: PropTypes.bool,
     className: PropTypes.string,

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Input, Button } from "../../components";
 import styles from "./ForgotPassword.module.scss";
+import AuthService from "../../services/AuthService";
 
 const ForgotPassword = () => {
     const [formData, setFormData] = useState({
@@ -52,7 +53,9 @@ const ForgotPassword = () => {
 
         try {
             // Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+           await AuthService.forgotPassword({
+             email : formData.email
+           })
 
             // Mock successful submission
             console.log("Password reset email sent to:", formData.email);

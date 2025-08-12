@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Input, Button } from "../../components";
 import styles from "./ResetPassword.module.scss";
+import AuthService from "../../services/AuthService";
 
 const ResetPassword = () => {
     const [searchParams] = useSearchParams();
@@ -15,6 +16,7 @@ const ResetPassword = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isTokenValid, setIsTokenValid] = useState(null);
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [userId, setUserId] = useState(null);
 
     useEffect(() => {
         // Validate token on component mount
@@ -26,7 +28,8 @@ const ResetPassword = () => {
 
             try {
                 // Simulate API call to validate token
-                await new Promise((resolve) => setTimeout(resolve, 1000));
+                const {data} = await AuthService.verifyToken(token);
+                setUserId(data.userId)
 
                 // Mock token validation (in real app, this would be an API call)
                 const isValid = token.length > 10; // Simple mock validation
@@ -86,12 +89,15 @@ const ResetPassword = () => {
         if (!validateForm()) {
             return;
         }
-
+   
         setIsSubmitting(true);
 
         try {
             // Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+           await AuthService.resetPassword({
+            ...formData,
+            userId
+           })
 
             // Mock successful password reset
             console.log("Password reset successful");
