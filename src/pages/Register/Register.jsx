@@ -101,7 +101,7 @@ const Register = () => {
 
       // Mock successful registration
      
-      const { email, password, firstName, lastName, ...form } = formData;
+      const { email, password, firstName, lastName,username, ...form } = formData;
 
       console.log(formData);
       
@@ -111,6 +111,7 @@ const Register = () => {
         password, 
         first_name: firstName,
         last_name: lastName,
+        username,
       };
 
       await AuthService.register(data);

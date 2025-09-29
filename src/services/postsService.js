@@ -18,28 +18,22 @@ export const getPostBySlug = async (slug) => {
   return result;
 };
 
-export const getByUserId = async (userId) => {
+export const getByUsername = async (username) => {
   try {
-    const res = await httpRequest.get(`/posts/user/${userId}`);
-    console.log(res);
-
+    const res = await httpRequest.get(`/posts/user/${username}`);
     return res;
   } catch (error) {
     throw error;
   }
 };
 
-export const getBookMarkPost = async () => {
-  const res = await httpRequest.get(`/posts/user/bookmarks`);
-  console.log(res);
-
-  return res;
+export const getListByUserBookmarks = async () => {
+  const result = await httpRequest.get(`/posts/user/bookmarks`);
+  return result;
 };
 
 export const getListMyPost = async () => {
   const res = await httpRequest.get("/posts/me");
-  console.log(res);
-
   return res;
 };
 
@@ -74,6 +68,7 @@ export const create = async (formData) => {
   try {
     const res = await httpRequest.post("/posts", formData);
     console.log(res);
+    return res;
   } catch (error) {
     console.error("Error in posts service create:", error);
     throw error;
@@ -102,8 +97,8 @@ export default {
   getAll,
   getListByTopicId,
   getBySlug,
-  getByUserId,
-  getBookMarkPost,
+  getByUsername,
+  getListByUserBookmarks,
   getPostBySlug,
   getRelatedPosts,
   getListMyPost,

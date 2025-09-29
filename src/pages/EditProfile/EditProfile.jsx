@@ -1,49 +1,52 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import Button from "../../components/Button/Button";
 import Input from "../../components/Input/Input";
 import Card from "../../components/Card/Card";
 import FallbackImage from "../../components/FallbackImage/FallbackImage";
 import styles from "./EditProfile.module.scss";
 
+import usersService from "../../services/profileService";
+import useUser from "../../hook/useUser";
+import profileService from "../../services/profileService";
+
 const EditProfile = () => {
     const navigate = useNavigate();
-
+    const [user, setUser] = useState(null);
+    const [settings, setSettings] = useState(null);
+     const {username} = useParams();
     // Mock current user data - trong thực tế sẽ fetch từ API hoặc context
-    const currentUser = {
-        username: "john-doe",
-        name: "John Doe",
-        title: "Senior Frontend Developer",
-        bio: "Passionate about modern web development, React ecosystem, and creating amazing user experiences.",
-        avatar: "https://via.placeholder.com/120?text=JD",
-        coverImage: "https://via.placeholder.com/1200x300?text=Cover+Image",
-        location: "San Francisco, CA",
-        website: "https://johndoe.dev",
-        social: {
-            twitter: "https://twitter.com/johndoe",
-            github: "https://github.com/johndoe",
-            linkedin: "https://linkedin.com/in/johndoe",
-        },
-        skills: ["React", "TypeScript", "Node.js", "GraphQL", "AWS", "Docker"],
-    };
+    const { currentUser } = useUser();
 
+    useEffect(() => {
+        if (currentUser) {
+            setUser(currentUser);
+            if (currentUser.settings) {
+                setSettings(JSON.parse(currentUser.settings.data));
+            }
+        }
+    }, [currentUser]);
+
+    // ✅ FIX: Khởi tạo formData với giá trị string cho tất cả fields
     const [formData, setFormData] = useState({
-        name: currentUser?.name || "",
-        username: currentUser?.username || "",
-        title: currentUser?.title || "",
-        bio: currentUser?.bio || "",
-        location: currentUser?.location || "",
-        website: currentUser?.website || "",
-        avatar: currentUser?.avatar || "",
-        coverImage: currentUser?.coverImage || "",
+        fullname: "",
+        first_name: "",
+        last_name: "",
+        username: "",
+        title: "",
+        bio: "",
+        location: "",
+        website_url: "",
+        avatar: "",
+        cover_image: "",
         social: {
-            twitter: currentUser?.social?.twitter || "",
-            github: currentUser?.social?.github || "",
-            linkedin: currentUser?.social?.linkedin || "",
+            twitter_url: "",
+            github_url: "",
+            linkedin_url: "",
         },
-        skills: currentUser?.skills?.join(", ") || "",
+        skills: "", // ✅ FIX: Luôn là string, không phải array
         privacy: {
-            profileVisibility: "public", // public, private
+            profileVisibility: "public",
             showEmail: false,
             showFollowersCount: true,
             showFollowingCount: true,
@@ -52,22 +55,70 @@ const EditProfile = () => {
         },
     });
 
-    const [imageFiles, setImageFiles] = useState({
-        avatar: null,
-        coverImage: null,
-    });
+    const [imageFiles, setImageFiles] = useState({});
 
-    const [imagePreviews, setImagePreviews] = useState({
-        avatar: formData.avatar,
-        coverImage: formData.coverImage,
-    });
+    const [imagePreviews, setImagePreviews] = useState({});
+
+    useEffect(() => {
+        // ✅ FIX: Đảm bảo skills luôn là string khi set vào formData
+        let skillsString = "";
+        if (user?.skills) {
+            if (typeof user.skills === "string") {
+                try {
+                    const parsedSkills = JSON.parse(user.skills);
+                    skillsString = Array.isArray(parsedSkills) ? parsedSkills.join(", ") : "";
+                } catch {
+                    skillsString = user.skills; // Nếu parse fail thì giữ nguyên string
+                }
+            } else if (Array.isArray(user.skills)) {
+                skillsString = user.skills.join(", ");
+            }
+        }
+
+        setFormData({
+            fullname: user?.fullname || "",
+            first_name: user?.first_name || "",
+            last_name: user?.last_name || "",
+            username: user?.username || "",
+            title: user?.title || "",
+            bio: user?.about || "",
+            location: user?.location || "",
+website_url: user?.website_url || "",
+            avatar: user?.avatar || "",
+            cover_image: user?.cover_image || "",
+            social: {
+                twitter_url: user?.twitter_url || "",
+                github_url: user?.github_url || "",
+                linkedin_url: user?.linkedin_url || "",
+            },
+            skills: skillsString, // ✅ FIX: Luôn là string
+
+            privacy: {
+                profileVisibility: settings?.defaultPostVisibility || "public",
+                showEmail: settings?.showEmail || false,
+                showFollowersCount: true,
+                showFollowingCount: true,
+                allowDirectMessages: true,
+                showOnlineStatus: true,
+            },
+        });
+
+        setImagePreviews({
+            avatar: user?.avatar,
+            cover_image: user?.cover_image,
+        });
+        setImageFiles({
+            avatar: user?.avatar,
+            cover_image: user?.cover_image,
+        });
+    }, [user, settings]);
 
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
 
     const handleInputChange = (field, value) => {
         if (field.startsWith("social.")) {
-            const socialField = field.split(".")[1];
+            const socialField = field?.split(".")[1];
             setFormData((prev) => ({
                 ...prev,
                 social: {
@@ -76,14 +127,16 @@ const EditProfile = () => {
                 },
             }));
         } else if (field.startsWith("privacy.")) {
-            const privacyField = field.split(".")[1];
-            setFormData((prev) => ({
-                ...prev,
-                privacy: {
-                    ...prev.privacy,
-                    [privacyField]: value,
-                },
-            }));
+            const privacyField = field?.split(".")[1];
+            setFormData((prev) => {
+                return {
+                    ...prev,
+                    privacy: {
+                        ...prev.privacy,
+                        [privacyField]: value,
+                    },
+                };
+            });
         } else {
             setFormData((prev) => ({
                 ...prev,
@@ -131,7 +184,7 @@ const EditProfile = () => {
         // Store file
         setImageFiles((prev) => ({
             ...prev,
-            [type]: file,
+[type]: file,
         }));
 
         // Create preview URL
@@ -148,8 +201,8 @@ const EditProfile = () => {
     const validateForm = () => {
         const newErrors = {};
 
-        if (!formData.name.trim()) {
-            newErrors.name = "Name is required";
+        if (!formData.fullname.trim()) {
+            newErrors.fullname = "Fullname is required";
         }
 
         if (!formData.username.trim()) {
@@ -159,32 +212,35 @@ const EditProfile = () => {
                 "Username can only contain letters, numbers, hyphens and underscores";
         }
 
-        if (formData.website && !formData.website.startsWith("http")) {
-            newErrors.website =
+        if (formData.website_url && !formData.website_url.startsWith("http")) {
+            newErrors.website_url =
                 "Website URL must start with http:// or https://";
         }
 
+        // ✅ FIX: Sửa validation URL cho social links
         if (
-            formData.social.twitter &&
-            !formData.social.twitter.startsWith("https://twitter.com/")
+            formData.social.twitter_url &&
+            !formData.social.twitter_url.startsWith("https://twitter.com/")
         ) {
-            newErrors["social.twitter"] =
+            newErrors["social.twitter_url"] =
                 "Twitter URL must be a valid Twitter profile URL";
         }
 
         if (
-            formData.social.github &&
-            !formData.social.github.startsWith("https://github.com/")
+            formData.social.github_url &&
+            !formData.social.github_url.startsWith("https://github.com/")
         ) {
-            newErrors["social.github"] =
+            newErrors["social.github_url"] =
                 "GitHub URL must be a valid GitHub profile URL";
         }
 
         if (
-            formData.social.linkedin &&
-            !formData.social.linkedin.startsWith("https://linkedin.com/")
+            formData.social.linkedin_url &&
+            !formData.social.linkedin_url.startsWith(
+                "https://linkedin.com/in/"
+            )
         ) {
-            newErrors["social.linkedin"] =
+            newErrors["social.linkedin_url"] =
                 "LinkedIn URL must be a valid LinkedIn profile URL";
         }
 
@@ -192,66 +248,62 @@ const EditProfile = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const uploadImages = async () => {
-        const uploadedUrls = { ...imagePreviews };
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-        // Upload avatar if new file selected
-        if (imageFiles.avatar) {
-            // Simulate upload - in real app, upload to your storage service
-            console.log("Uploading avatar:", imageFiles.avatar);
-            // uploadedUrls.avatar = await uploadToStorage(imageFiles.avatar);
+    try {
+        const formDataToSend = new FormData();
+        
+        // Basic info
+        formDataToSend.append("fullname", formData.fullname || "");
+        formDataToSend.append("username", formData.username || "");
+        formDataToSend.append("title", formData.title || "");
+        formDataToSend.append("about", formData.bio || "");
+        formDataToSend.append("location", formData.location || "");
+        formDataToSend.append("website_url", formData.website_url || "");
+        
+        // Social links
+        formDataToSend.append("twitter_url", formData.social.twitter_url || "");
+        formDataToSend.append("github_url", formData.social.github_url || "");
+        formDataToSend.append("linkedin_url", formData.social.linkedin_url || "");
+        
+        // Skills
+        const skillsArray = formData.skills 
+            ? formData.skills.split(",").map(s => s.trim()).filter(s => s.length > 0)
+            : [];
+        formDataToSend.append("skills", JSON.stringify(skillsArray));
+        
+        // QUAN TRỌNG: Thêm ảnh
+        if (imageFiles.avatar && typeof imageFiles.avatar !== 'string') {
+            formDataToSend.append("avatar", imageFiles.avatar);
+            console.log("✅ Added avatar file");
         }
-
-        // Upload cover image if new file selected
-        if (imageFiles.coverImage) {
-            // Simulate upload - in real app, upload to your storage service
-            console.log("Uploading cover image:", imageFiles.coverImage);
-            // uploadedUrls.coverImage = await uploadToStorage(imageFiles.coverImage);
+        
+        if (imageFiles.cover_image && typeof imageFiles.cover_image !== 'string') {
+            formDataToSend.append("cover_image", imageFiles.cover_image);
+            console.log("✅ Added cover image file");
         }
-
-        return uploadedUrls;
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!validateForm()) {
-            return;
+        
+        // Debug FormData content
+        console.log("=== FormData Content ===");
+        for (let [key, value] of formDataToSend.entries()) {
+            console.log(`${key}:`, value);
         }
-
-        setLoading(true);
-
-        try {
-            // Upload images first
-            const imageUrls = await uploadImages();
-
-            // Prepare data for submission
-            const submitData = {
-                ...formData,
-                avatar: imageUrls.avatar,
-                coverImage: imageUrls.coverImage,
-                skills: formData.skills
-                    .split(",")
-                    .map((skill) => skill.trim())
-                    .filter((skill) => skill.length > 0),
-            };
-
-            // Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-
-            console.log("Profile updated successfully:", submitData);
-
-            // Navigate back to profile with success message
-            navigate(`/profile/${formData.username}`, {
-                state: { message: "Profile updated successfully!" },
-            });
-        } catch (error) {
-            console.error("Error saving profile:", error);
-            setErrors({ submit: "Failed to save profile. Please try again." });
-        } finally {
-            setLoading(false);
-        }
-    };
+        
+        const result = await profileService.editProfile(formDataToSend, formData.username || username);
+        console.log("API Success:", result);
+        
+        // Force redirect với reload
+        window.location.href = `/profile/${formData.username || username}`;
+        
+    } catch (error) {
+        console.error("Submit Error:", error);
+        setErrors({ submit: error.message });
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleCancel = () => {
         navigate(-1); // Go back to previous page
@@ -281,25 +333,39 @@ const EditProfile = () => {
                                 <div className={styles.imagePreview}>
                                     <div className={styles.coverPreview}>
                                         <FallbackImage
-                                            src={imagePreviews.coverImage}
+                                            src={
+                                                imagePreviews.cover_image?.startsWith(
+                                                    "http"
+                                                ) ||
+imagePreviews.cover_image?.startsWith(
+                                                    "data:"
+                                                )
+                                                    ? imagePreviews.cover_image
+                                                    : `${
+                                                          import.meta.env
+                                                              .VITE_BASE_URL
+                                                      }/${
+                                                          imagePreviews.cover_image
+                                                      }`
+                                            }
                                             alt="Cover preview"
                                             className={styles.coverImg}
                                         />
                                         <div className={styles.imageUpload}>
                                             <input
                                                 type="file"
-                                                id="coverImage"
+                                                id="cover_image"
                                                 accept="image/*"
                                                 onChange={(e) =>
                                                     handleImageChange(
-                                                        "coverImage",
+                                                        "cover_image",
                                                         e
                                                     )
                                                 }
                                                 className={styles.fileInput}
                                             />
                                             <label
-                                                htmlFor="coverImage"
+                                                htmlFor="cover_image"
                                                 className={styles.uploadButton}
                                             >
                                                 📷 Change Cover
@@ -308,16 +374,28 @@ const EditProfile = () => {
                                         <span className={styles.imageLabel}>
                                             Cover Image
                                         </span>
-                                        {errors.coverImage && (
+                                        {errors.cover_image && (
                                             <div className={styles.imageError}>
-                                                {errors.coverImage}
+                                                {errors.cover_image}
                                             </div>
                                         )}
                                     </div>
 
                                     <div className={styles.avatarPreview}>
                                         <FallbackImage
-                                            src={imagePreviews.avatar}
+                                            src={
+                                                imagePreviews.avatar?.startsWith(
+                                                    "http"
+) ||
+                                                imagePreviews.avatar?.startsWith(
+                                                    "data:"
+                                                )
+                                                    ? imagePreviews.avatar
+                                                    : `${
+                                                          import.meta.env
+                                                              .VITE_BASE_URL
+                                                      }/${imagePreviews.avatar}`
+                                            }
                                             alt="Avatar preview"
                                             className={styles.avatarImg}
                                         />
@@ -359,7 +437,7 @@ const EditProfile = () => {
                                     </p>
                                     <p>
                                         <strong>Cover:</strong> Recommended
-                                        1200x300px, max 5MB
+1200x300px, max 5MB
                                     </p>
                                     <p>Supported formats: JPG, PNG, GIF</p>
                                 </div>
@@ -372,20 +450,23 @@ const EditProfile = () => {
                             <div className={styles.grid}>
                                 <Input
                                     label="Full Name"
-                                    value={formData.name}
+                                    value={
+                                        formData?.fullname ||
+                                        `${formData?.first_name || ""} ${formData?.last_name || ""}`.trim()
+                                    }
                                     onChange={(e) =>
                                         handleInputChange(
-                                            "name",
+                                            "fullname",
                                             e.target.value
                                         )
                                     }
-                                    error={errors.name}
+                                    error={errors.fullname}
                                     required
                                     fullWidth
                                 />
                                 <Input
                                     label="Username"
-                                    value={formData.username}
+                                    value={formData.username || ""} // ✅ FIX: Đảm bảo luôn có string
                                     onChange={(e) =>
                                         handleInputChange(
                                             "username",
@@ -400,7 +481,7 @@ const EditProfile = () => {
 
                             <Input
                                 label="Professional Title"
-                                value={formData.title}
+                                value={formData.title || ""} // ✅ FIX: Đảm bảo luôn có string
                                 onChange={(e) =>
                                     handleInputChange("title", e.target.value)
                                 }
@@ -414,8 +495,8 @@ const EditProfile = () => {
                                 </label>
                                 <textarea
                                     className={styles.textarea}
-                                    value={formData.bio}
-                                    onChange={(e) =>
+                                    value={formData.bio || ""} // ✅ FIX: Đảm bảo luôn có string
+onChange={(e) =>
                                         handleInputChange("bio", e.target.value)
                                     }
                                     placeholder="Tell us about yourself..."
@@ -430,7 +511,7 @@ const EditProfile = () => {
                             <div className={styles.grid}>
                                 <Input
                                     label="Location"
-                                    value={formData.location}
+                                    value={formData.location || ""} // ✅ FIX: Đảm bảo luôn có string
                                     onChange={(e) =>
                                         handleInputChange(
                                             "location",
@@ -442,15 +523,15 @@ const EditProfile = () => {
                                 />
                                 <Input
                                     label="Website"
-                                    value={formData.website}
+                                    value={formData.website_url || ""} // ✅ FIX: Đảm bảo luôn có string
                                     onChange={(e) =>
                                         handleInputChange(
-                                            "website",
+                                            "website_url",
                                             e.target.value
                                         )
                                     }
                                     placeholder="https://yourwebsite.com"
-                                    error={errors.website}
+                                    error={errors.website_url}
                                     fullWidth
                                 />
                             </div>
@@ -461,41 +542,41 @@ const EditProfile = () => {
                             <h3>Social Links</h3>
                             <Input
                                 label="Twitter"
-                                value={formData.social.twitter}
+                                value={formData?.social?.twitter_url || ""} // ✅ FIX: Đảm bảo luôn có string
                                 onChange={(e) =>
                                     handleInputChange(
-                                        "social.twitter",
+                                        "social.twitter_url",
                                         e.target.value
                                     )
                                 }
                                 placeholder="https://twitter.com/username"
-                                error={errors["social.twitter"]}
+                                error={errors["social.twitter_url"]}
                                 fullWidth
                             />
                             <Input
                                 label="GitHub"
-                                value={formData.social.github}
+value={formData?.social?.github_url || ""} // ✅ FIX: Đảm bảo luôn có string
                                 onChange={(e) =>
                                     handleInputChange(
-                                        "social.github",
+                                        "social.github_url",
                                         e.target.value
                                     )
                                 }
                                 placeholder="https://github.com/username"
-                                error={errors["social.github"]}
+                                error={errors["social.github_url"]}
                                 fullWidth
                             />
                             <Input
                                 label="LinkedIn"
-                                value={formData.social.linkedin}
+                                value={formData?.social?.linkedin_url || ""} // ✅ FIX: Đảm bảo luôn có string
                                 onChange={(e) =>
                                     handleInputChange(
-                                        "social.linkedin",
+                                        "social.linkedin_url",
                                         e.target.value
                                     )
                                 }
                                 placeholder="https://linkedin.com/in/username"
-                                error={errors["social.linkedin"]}
+                                error={errors["social.linkedin_url"]}
                                 fullWidth
                             />
                         </div>
@@ -505,7 +586,7 @@ const EditProfile = () => {
                             <h3>Skills</h3>
                             <Input
                                 label="Skills (comma separated)"
-                                value={formData.skills}
+                                value={formData?.skills || ""} // ✅ FIX: Đảm bảo luôn có string
                                 onChange={(e) =>
                                     handleInputChange("skills", e.target.value)
                                 }
@@ -529,12 +610,12 @@ const EditProfile = () => {
                                                 styles.privacyDescription
                                             }
                                         >
-                                            Control who can view your profile
+Control who can view your profile
                                         </p>
                                     </div>
                                     <select
                                         value={
-                                            formData.privacy.profileVisibility
+                                            formData?.privacy?.profileVisibility || "public" // ✅ FIX: Đảm bảo có default value
                                         }
                                         onChange={(e) =>
                                             handleInputChange(
@@ -564,7 +645,7 @@ const EditProfile = () => {
                                     </div>
                                     <input
                                         type="checkbox"
-                                        checked={formData.privacy.showEmail}
+                                        checked={formData?.privacy?.showEmail || false} // ✅ FIX: Đảm bảo có default boolean
                                         onChange={(e) =>
                                             handleInputChange(
                                                 "privacy.showEmail",
@@ -581,7 +662,7 @@ const EditProfile = () => {
                                             Show Followers Count
                                         </label>
                                         <p
-                                            className={
+className={
                                                 styles.privacyDescription
                                             }
                                         >
@@ -592,7 +673,7 @@ const EditProfile = () => {
                                     <input
                                         type="checkbox"
                                         checked={
-                                            formData.privacy.showFollowersCount
+                                            formData?.privacy?.showFollowersCount || false // ✅ FIX: Đảm bảo có default boolean
                                         }
                                         onChange={(e) =>
                                             handleInputChange(
@@ -620,7 +701,7 @@ const EditProfile = () => {
                                     <input
                                         type="checkbox"
                                         checked={
-                                            formData.privacy.showFollowingCount
+                                            formData?.privacy?.showFollowingCount || false // ✅ FIX: Đảm bảo có default boolean
                                         }
                                         onChange={(e) =>
                                             handleInputChange(
@@ -634,7 +715,7 @@ const EditProfile = () => {
 
                                 <div className={styles.privacyItem}>
                                     <div className={styles.privacyInfo}>
-                                        <label className={styles.privacyLabel}>
+<label className={styles.privacyLabel}>
                                             Allow Direct Messages
                                         </label>
                                         <p
@@ -649,7 +730,7 @@ const EditProfile = () => {
                                     <input
                                         type="checkbox"
                                         checked={
-                                            formData.privacy.allowDirectMessages
+                                            formData?.privacy?.allowDirectMessages || false // ✅ FIX: Đảm bảo có default boolean
                                         }
                                         onChange={(e) =>
                                             handleInputChange(
@@ -678,7 +759,7 @@ const EditProfile = () => {
                                     <input
                                         type="checkbox"
                                         checked={
-                                            formData.privacy.showOnlineStatus
+                                            formData?.privacy?.showOnlineStatus || false // ✅ FIX: Đảm bảo có default boolean
                                         }
                                         onChange={(e) =>
                                             handleInputChange(
@@ -686,7 +767,7 @@ const EditProfile = () => {
                                                 e.target.checked
                                             )
                                         }
-                                        className={styles.privacyToggle}
+className={styles.privacyToggle}
                                     />
                                 </div>
                             </div>

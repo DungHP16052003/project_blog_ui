@@ -243,7 +243,7 @@ const Header = () => {
                                             <nav className={styles.dropdownNav}>
                                                 <Link
                                                     to={`/profile/${
-                                                        user?.username ||
+                                                        currentUser?.username ||
                                                         "john-doe"
                                                     }`}
                                                     className={

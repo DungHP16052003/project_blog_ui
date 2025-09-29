@@ -4,64 +4,67 @@ import Button from "../../components/Button/Button";
 import Input from "../../components/Input/Input";
 import FallbackImage from "../../components/FallbackImage/FallbackImage";
 import styles from "./DirectMessages.module.scss";
+import conversationService from "../../services/conversationService";
 
 const DirectMessages = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [searchQuery, setSearchQuery] = useState("");
     const [newMessage, setNewMessage] = useState("");
     const [selectedConversation, setSelectedConversation] = useState(null);
+    const [filteredConversations, setFilteredConversations] = useState([]);
+    const [isLoading, setIsLoading] = useState(true); // Add loading state
     const messagesEndRef = useRef(null);
 
     // Mock data - in real app this would come from API
     const [conversations, setConversations] = useState([
-        {
-            id: 1,
-            participant: {
-                id: 2,
-                name: "Sarah Chen",
-                username: "sarahc",
-                avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face",
-            },
-            lastMessage: {
-                text: "Hey! Did you see the latest blog post about React hooks?",
-                timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 mins ago
-                senderId: 2,
-            },
-            unreadCount: 2,
-            isOnline: true,
-        },
-        {
-            id: 2,
-            participant: {
-                id: 3,
-                name: "Alex Johnson",
-                username: "alexj",
-                avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face",
-            },
-            lastMessage: {
-                text: "Thanks for the feedback on my article!",
-                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-                senderId: 1,
-            },
-            unreadCount: 0,
-            isOnline: false,
-        },
-        {
-            id: 3,
-            participant: {
-                id: 4,
-                name: "Emily Davis",
-                username: "emilyd",
-                avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face",
-            },
-            lastMessage: {
-                text: "Would love to collaborate on a project!",
-                timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-                senderId: 4,
-            },
-            unreadCount: 1,
-            isOnline: true,
-        },
+        // {
+        //     id: 1,
+        //     participant: {
+        //         id: 2,
+        //         name: "Sarah Chen",
+        //         username: "sarahc",
+        //         avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face",
+        //     },
+        //     lastMessage: {
+        //         text: "Hey! Did you see the latest blog post about React hooks?",
+        //         timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 mins ago
+        //         senderId: 2,
+        //     },
+        //     unreadCount: 2,
+        //     isOnline: true,
+        // },
+        // {
+        //     id: 2,
+        //     participant: {
+        //         id: 3,
+        //         name: "Alex Johnson",
+        //         username: "alexj",
+        //         avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face",
+        //     },
+        //     lastMessage: {
+        //         text: "Thanks for the feedback on my article!",
+        //         timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+        //         senderId: 1,
+        //     },
+        //     unreadCount: 0,
+        //     isOnline: false,
+        // },
+        // {
+        //     id: 3,
+        //     participant: {
+        //         id: 4,
+        //         name: "Emily Davis",
+        //         username: "emilyd",
+        //         avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face",
+        //     },
+        //     lastMessage: {
+        //         text: "Would love to collaborate on a project!",
+        //         timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+        //         senderId: 4,
+        //     },
+        //     unreadCount: 1,
+        //     isOnline: true,
+        // },
     ]);
 
     const [messages, setMessages] = useState({
@@ -109,6 +112,23 @@ const DirectMessages = () => {
         ],
     });
 
+    // Fix 1: Proper error handling for API call
+    useEffect(() => {
+        const fetchConversation = async() => {
+            try {
+                setIsLoading(true);
+                const res = await conversationService.getCoversation();
+                setConversations(Array.isArray(res) ? res : []);
+            } catch (error) {
+                console.error('Error fetching conversations:', error);
+                setConversations(conversations);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchConversation();
+    }, []);
+
     // Get conversation ID from URL params
     useEffect(() => {
         const conversationId = searchParams.get("conversation");
@@ -118,11 +138,10 @@ const DirectMessages = () => {
             );
             if (conversation) {
                 setSelectedConversation(conversation);
-                // Mark as read
                 markAsRead(conversation.id);
             }
         }
-    }, [searchParams]); // Remove conversations from dependency to avoid infinite loop
+    }, [searchParams, conversations]); // Add conversations back to deps since we handle it properly now
 
     // Auto-scroll to bottom when messages change
     useEffect(() => {
@@ -206,19 +225,36 @@ const DirectMessages = () => {
         return date.toLocaleDateString();
     };
 
-    const filteredConversations = conversations.filter(
-        (conv) =>
-            conv.participant.name
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase()) ||
-            conv.participant.username
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase())
-    );
+    // Fix 3: Implement proper search filtering
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            setFilteredConversations(conversations);
+        } else {
+            const filtered = conversations.filter(
+                (conv) =>
+                    conv.participant.name
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase()) ||
+                    conv.participant.username
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase())
+            );
+            setFilteredConversations(filtered);
+        }
+    }, [searchQuery, conversations]);
 
     const currentMessages = selectedConversation
         ? messages[selectedConversation.id] || []
         : [];
+
+    // Fix 4: Add loading state
+    if (isLoading) {
+        return (
+            <div className={styles.container}>
+                <div className={styles.loading}>Loading conversations...</div>
+            </div>
+        );
+    }
 
     return (
         <div className={styles.container}>
@@ -253,60 +289,70 @@ const DirectMessages = () => {
                     </div>
 
                     <div className={styles.conversationsList}>
-                        {filteredConversations.map((conversation) => (
-                            <div
-                                key={conversation.id}
-                                className={`${styles.conversationItem} ${
-                                    selectedConversation?.id === conversation.id
-                                        ? styles.selected
-                                        : ""
-                                }`}
-                                onClick={() =>
-                                    handleConversationSelect(conversation)
-                                }
-                            >
-                                <div className={styles.avatarContainer}>
-                                    <FallbackImage
-                                        src={conversation.participant.avatar}
-                                        alt={conversation.participant.name}
-                                        className={styles.avatar}
-                                    />
-                                    {conversation.participant.isOnline && (
-                                        <div
-                                            className={styles.onlineIndicator}
-                                        />
-                                    )}
-                                </div>
+                        
 
-                                <div className={styles.conversationContent}>
-                                    <div className={styles.conversationHeader}>
-                                        <span
-                                            className={styles.participantName}
-                                        >
-                                            {conversation.participant.name}
-                                        </span>
-                                        <span className={styles.timestamp}>
-                                            {formatTime(
-                                                conversation.lastMessage
-                                                    .timestamp
-                                            )}
-                                        </span>
-                                    </div>
-                                    <div className={styles.lastMessage}>
-                                        <span className={styles.messageText}>
-                                            {conversation.lastMessage.text}
-                                        </span>
-                                        {conversation.unreadCount > 0 && (
-                                            <span
-                                                className={styles.unreadBadge}
-                                            >
-                                                {conversation.unreadCount}
-                                            </span>
+                        {Array.isArray(filteredConversations) && filteredConversations.length > 0 ? (
+                            filteredConversations.map((conversation) => (
+                                <div
+                                    key={conversation.id}
+                                    className={`${styles.conversationItem} ${
+                                        selectedConversation?.id === conversation.id
+                                            ? styles.selected
+                                            : ""
+                                    }`}
+                                    onClick={() =>
+                                        handleConversationSelect(conversation)
+                                    }
+                                >
+                                    <div className={styles.avatarContainer}>
+                                        <FallbackImage
+                                            src={conversation.participant.avatar}
+                                            alt={conversation.participant.username
+
+                                            }
+                                            className={styles.avatar}
+                                        />
+                                        {conversation.participant.isOnline && (
+                                            <div
+                                                className={styles.onlineIndicator}
+                                            />
                                         )}
                                     </div>
+
+                                    <div className={styles.conversationContent}>
+                                        <div className={styles.conversationHeader}>
+                                            <span
+                                                className={styles.participantName}
+                                            >
+                                                {conversation.participant.username}
+                                            </span>
+                                            <span className={styles.timestamp}>
+                                                {formatTime(
+                                                    conversation.lastMessage
+                                                        .timestamp
+                                                )}
+                                            </span>
+                                        </div>
+                                        <div className={styles.lastMessage}>
+                                            <span className={styles.messageText}>
+                                                {conversation.lastMessage.text}
+                                            </span>
+                                            {conversation.unreadCount > 0 && (
+                                                <span
+                                                    className={styles.unreadBadge}
+                                                >
+                                                    {conversation.unreadCount}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
+                            ))
+                        ) : (
+                            <div className={styles.noConversations}>
+                                {searchQuery ? 'No conversations found' : 'No conversations yet'}
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
 
@@ -319,12 +365,11 @@ const DirectMessages = () => {
                                 <div className={styles.participantInfo}>
                                     <FallbackImage
                                         src={
-                                            selectedConversation.participant
-                                                .avatar
+                                            `http://localhost:5173/${selectedConversation.participant.avatar}`
                                         }
                                         alt={
                                             selectedConversation.participant
-                                                .name
+                                                .username
                                         }
                                         className={styles.headerAvatar}
                                     />
@@ -332,7 +377,7 @@ const DirectMessages = () => {
                                         <h2 className={styles.participantName}>
                                             {
                                                 selectedConversation.participant
-                                                    .name
+                                                    .username
                                             }
                                         </h2>
                                         <span

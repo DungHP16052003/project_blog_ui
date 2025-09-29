@@ -1,6 +1,12 @@
-import httpRequest from "../../utils/httpRequest";
+// import httpRequest from "../../utils/httpRequest";
 
-export const getByUserName = async (username) => {
-  const res = await httpRequest.get(`/users/${username}`);
-  return res;
-};
+// export const getUserById = async (userId) => {
+//   const result = await httpRequest.get(`/users/id/${userId}`);
+//   console.log(result);
+
+//   return result;
+// };
+
+// export default {
+//   getUserById,
+// };

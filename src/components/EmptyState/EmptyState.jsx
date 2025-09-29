@@ -7,6 +7,7 @@ const EmptyState = ({
     title = "No data found",
     description,
     icon,
+    actionButton,
     actionText,
     onAction,
     className,
